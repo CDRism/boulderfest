@@ -330,7 +330,9 @@
   // of falling through to Beginner.
   const BEGINNER_ORANGE_CAP = 2;
   const INTERMEDIATE_BLUE_CAP = 2;
-
+  const ADVANCED_WHITE_CAP = 2;
+  const ADVANCED_MINT_CAP = 0;
+  
   const TAG_COLORS = {
     Beginner:     { bg: '#EDEAE3', fg: '#221E1B' },
     Intermediate: { bg: '#F0791E', fg: '#221E1B' },
@@ -436,9 +438,15 @@
     const intCount = countAtOrAbove(INTERMEDIATE_AT_OR_ABOVE);
 
     let category, detail;
-    if (openCount >= half) {
+    if (mintCount > ADVANCED_MINT_CAP) {
     category = 'Open';
-    detail = openCount + ' of ' + total + ' were white or mint';
+    detail = mintCount + ' of ' + total + ' were mint';
+    } else if (openCount >= half) {
+    category = 'Open';
+    detail = openCount + ' of ' + total + ' were white or mint'; 
+    } else if (advCount >= half && openCount > ADVANCED_WHITE_CAP) {
+    category = 'Open';
+    detail = advCount + ' of ' + total + ' were blue or harder, including ' + openCount + ' at white or harder';
     } else if (advCount >= half) {
     category = 'Advanced';
     detail = advCount + ' of ' + total + ' were blue or harder';
@@ -452,7 +460,7 @@
     category = 'Beginner';
     detail = intCount + ' of ' + total + ' were orange or harder';
     }
-
+    
     if (total !== 10) {
       detail += ' (based on ' + total + ' climbs entered)';
     }
