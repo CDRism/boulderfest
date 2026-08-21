@@ -332,6 +332,8 @@
   const INTERMEDIATE_BLUE_CAP = 2;
   const ADVANCED_WHITE_CAP = 2;
   const ADVANCED_MINT_CAP = 0;
+  const BEGINNER_BLUE_FLOOR = 0;
+  const INTERMEDIATE_WHITE_FLOOR = 0;
   
   const TAG_COLORS = {
     Beginner:     { bg: '#EDEAE3', fg: '#221E1B' },
@@ -438,29 +440,37 @@
     const intCount = countAtOrAbove(INTERMEDIATE_AT_OR_ABOVE);
 
     let category, detail;
-    const mintCount = countAtOrAbove(['mint']);
-    
     if (mintCount > ADVANCED_MINT_CAP) {
-    category = 'Open';
-    detail = mintCount + ' of ' + total + ' were mint';
+      category = 'Open';
+      detail = mintCount + ' of ' + total + ' were mint';
     } else if (openCount >= half) {
-    category = 'Open';
-    detail = openCount + ' of ' + total + ' were white or mint'; 
+      category = 'Open';
+      detail = openCount + ' of ' + total + ' were white or mint';
     } else if (advCount >= half && openCount > ADVANCED_WHITE_CAP) {
-    category = 'Open';
-    detail = advCount + ' of ' + total + ' were blue or harder, including ' + openCount + ' at white or harder';
+      category = 'Open';
+      detail = advCount + ' of ' + total + ' were blue or harder, including ' + openCount + ' at white or harder';
     } else if (advCount >= half) {
-    category = 'Advanced';
-    detail = advCount + ' of ' + total + ' were blue or harder';
+      category = 'Advanced';
+      detail = advCount + ' of ' + total + ' were blue or harder';
     } else if (intCount >= half && advCount > INTERMEDIATE_BLUE_CAP) {
-    category = 'Advanced';
-    detail = intCount + ' of ' + total + ' were orange or harder, including ' + advCount + ' at blue or harder';
+      category = 'Advanced';
+      detail = intCount + ' of ' + total + ' were orange or harder, including ' + advCount + ' at blue or harder';
     } else if (intCount >= half || intCount > BEGINNER_ORANGE_CAP) {
-    category = 'Intermediate';
-    detail = intCount + ' of ' + total + ' were orange or harder';
+      category = 'Intermediate';
+      detail = intCount + ' of ' + total + ' were orange or harder';
     } else {
-    category = 'Beginner';
-    detail = intCount + ' of ' + total + ' were orange or harder';
+      category = 'Beginner';
+      detail = intCount + ' of ' + total + ' were orange or harder';
+    }
+ 
+    // Floors: a single blue+ or white+ send overrides the volume math above.
+    if (category === 'Beginner' && advCount > BEGINNER_BLUE_FLOOR) {
+      category = 'Intermediate';
+      detail = advCount + ' of ' + total + ' were blue or harder — that rules out Beginner';
+    }
+    if ((category === 'Beginner' || category === 'Intermediate') && openCount > INTERMEDIATE_WHITE_FLOOR) {
+      category = 'Advanced';
+      detail = openCount + ' of ' + total + ' were white or harder — that rules out Intermediate';
     }
     
     if (total !== 10) {
