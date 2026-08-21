@@ -438,6 +438,8 @@
     const intCount = countAtOrAbove(INTERMEDIATE_AT_OR_ABOVE);
 
     let category, detail;
+    const mintCount = countAtOrAbove(['mint']);
+    
     if (mintCount > ADVANCED_MINT_CAP) {
     category = 'Open';
     detail = mintCount + ' of ' + total + ' were mint';
