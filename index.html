@@ -328,6 +328,7 @@
   // climbs can be Advanced-tier (blue or above). Climbers who clear the
   // Intermediate bar but exceed this cap get bumped up to Advanced instead
   // of falling through to Beginner.
+  const BEGINNER_ORANGE_CAP = 2;
   const INTERMEDIATE_BLUE_CAP = 2;
 
   const TAG_COLORS = {
@@ -436,20 +437,20 @@
 
     let category, detail;
     if (openCount >= half) {
-      category = 'Open';
-      detail = openCount + ' of ' + total + ' were white or mint';
+    category = 'Open';
+    detail = openCount + ' of ' + total + ' were white or mint';
     } else if (advCount >= half) {
-      category = 'Advanced';
-      detail = advCount + ' of ' + total + ' were blue or harder';
+    category = 'Advanced';
+    detail = advCount + ' of ' + total + ' were blue or harder';
     } else if (intCount >= half && advCount > INTERMEDIATE_BLUE_CAP) {
-      category = 'Advanced';
-      detail = intCount + ' of ' + total + ' were orange or harder, including ' + advCount + ' at blue or harder';
-    } else if (intCount >= half) {
-      category = 'Intermediate';
-      detail = intCount + ' of ' + total + ' were orange or harder';
+    category = 'Advanced';
+    detail = intCount + ' of ' + total + ' were orange or harder, including ' + advCount + ' at blue or harder';
+    } else if (intCount >= half || intCount > BEGINNER_ORANGE_CAP) {
+    category = 'Intermediate';
+    detail = intCount + ' of ' + total + ' were orange or harder';
     } else {
-      category = 'Beginner';
-      detail = intCount + ' of ' + total + ' were orange or harder';
+    category = 'Beginner';
+    detail = intCount + ' of ' + total + ' were orange or harder';
     }
 
     if (total !== 10) {
