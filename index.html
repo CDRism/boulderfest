@@ -261,9 +261,9 @@
 </head>
 <body>
 <div class="wrap">
-  <p class="eyebrow">BoulderFest Sign-Up!</p>
+  <p class="eyebrow">Competition Sign-Up</p>
   <h1>Find your category</h1>
-  <p class="subhead">Count up your top 10 hardest sends in the last two months for each color. We'll tell you which division to enter!</p>
+  <p class="subhead">Count up your top 10 hardest sends and tell us how many were each color. We'll tell you which division to enter.</p>
 
   <div class="card">
     <div class="grade-columns">
@@ -328,13 +328,27 @@
   // climbs can be Advanced-tier (blue or above). Climbers who clear the
   // Intermediate bar but exceed this cap get bumped up to Advanced instead
   // of falling through to Beginner.
-  const BEGINNER_ORANGE_CAP = 2;
-  const INTERMEDIATE_BLUE_CAP = 2;
+  const INTERMEDIATE_BLUE_CAP = 1;
+
+  // Same idea one tier up: to stay in Advanced, no more than this many
+  // climbs can be Open-tier (white or mint).
   const ADVANCED_WHITE_CAP = 2;
+
+  // Even below the volume bar for a tier, more than this many climbs at
+  // the next tier's color still bumps someone up. Beginner -> Intermediate.
+  const BEGINNER_ORANGE_CAP = 2;
+
+  // Absolute override: more than this many MINT climbs (the single hardest
+  // color) puts someone in Open regardless of everything else. 0 means
+  // "any mint send at all" qualifies — mint is treated as strictly harder
+  // than every other tier's threshold, so it overrides volume math entirely.
   const ADVANCED_MINT_CAP = 0;
-  const BEGINNER_BLUE_FLOOR = 0;
-  const INTERMEDIATE_WHITE_FLOOR = 0;
-  
+
+  // Floors: some colors are hard enough that sending even one rules out
+  // the lower categories entirely, no matter what the volume math says.
+  const BEGINNER_BLUE_FLOOR = 0;      // more than this many blue-or-harder climbs -> can't stay in Beginner
+  const INTERMEDIATE_WHITE_FLOOR = 0; // more than this many white-or-harder climbs -> can't stay in Intermediate (or Beginner)
+
   const TAG_COLORS = {
     Beginner:     { bg: '#EDEAE3', fg: '#221E1B' },
     Intermediate: { bg: '#F0791E', fg: '#221E1B' },
@@ -438,6 +452,7 @@
     const openCount = countAtOrAbove(OPEN_AT_OR_ABOVE);
     const advCount = countAtOrAbove(ADVANCED_AT_OR_ABOVE);
     const intCount = countAtOrAbove(INTERMEDIATE_AT_OR_ABOVE);
+    const mintCount = countAtOrAbove(['mint']);
 
     let category, detail;
     if (mintCount > ADVANCED_MINT_CAP) {
@@ -462,7 +477,7 @@
       category = 'Beginner';
       detail = intCount + ' of ' + total + ' were orange or harder';
     }
- 
+
     // Floors: a single blue+ or white+ send overrides the volume math above.
     if (category === 'Beginner' && advCount > BEGINNER_BLUE_FLOOR) {
       category = 'Intermediate';
@@ -472,7 +487,7 @@
       category = 'Advanced';
       detail = openCount + ' of ' + total + ' were white or harder — that rules out Intermediate';
     }
-    
+
     if (total !== 10) {
       detail += ' (based on ' + total + ' climbs entered)';
     }
