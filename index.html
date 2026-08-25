@@ -114,6 +114,8 @@
   .stepper button:hover { background: var(--bg); }
   .stepper button:active { background: var(--line); }
   .stepper button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .stepper button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .stepper button:disabled:hover { background: var(--surface); }
 
   .stepper .count {
     width: 30px;
@@ -325,6 +327,12 @@
   // fit the bottom/middle/top pattern at all.
   const MINT_AUTO_OPEN = 1;
 
+  // The whole form is framed as "your top 10 hardest sends" — this caps
+  // the total entries so someone can't inflate their counts by listing
+  // more than that. Entering fewer than this is fine (thresholds above
+  // still apply as-is); entering more is blocked in the UI.
+  const MAX_TOTAL_CLIMBS = 10;
+
   const TAG_COLORS = {
     Recreational: { bg: '#EDEAE3', fg: '#221E1B' },
     Intermediate: { bg: '#F0791E', fg: '#221E1B' },
@@ -382,7 +390,7 @@
 
   function buildTicks() {
     const el = document.getElementById('tally-ticks');
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < MAX_TOTAL_CLIMBS; i++) {
       const t = document.createElement('div');
       t.className = 'tick';
       t.id = 'tick-' + i;
@@ -391,6 +399,8 @@
   }
 
   function changeCount(i, delta) {
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (delta > 0 && total >= MAX_TOTAL_CLIMBS) return;
     counts[i] = Math.max(0, counts[i] + delta);
     document.getElementById('count-' + COLORS[i].key).textContent = counts[i];
     updateTally();
@@ -398,10 +408,13 @@
 
   function updateTally() {
     const total = counts.reduce((a, b) => a + b, 0);
-    document.getElementById('tally-count').textContent = total + ' entered';
-    for (let i = 0; i < 10; i++) {
+    document.getElementById('tally-count').textContent = total + ' of ' + MAX_TOTAL_CLIMBS + ' entered';
+    for (let i = 0; i < MAX_TOTAL_CLIMBS; i++) {
       document.getElementById('tick-' + i).classList.toggle('filled', i < total);
     }
+    document.querySelectorAll('.stepper button:last-child').forEach(btn => {
+      btn.disabled = total >= MAX_TOTAL_CLIMBS;
+    });
     document.getElementById('result').classList.remove('visible');
     document.getElementById('empty-note').classList.remove('visible');
   }
@@ -409,11 +422,6 @@
   function colorCount(key) {
     const i = COLORS.findIndex(c => c.key === key);
     return i === -1 ? 0 : counts[i];
-  }
-
-  function colorWord(key) {
-    const c = COLORS.find(c => c.key === key);
-    return c ? c.label.toLowerCase() : key;
   }
 
   function calculate() {
@@ -429,11 +437,10 @@
     noteEl.classList.remove('visible');
 
     const mintCount = colorCount('mint');
-    let category, detail;
+    let category;
 
     if (mintCount >= MINT_AUTO_OPEN) {
       category = 'Open';
-      detail = mintCount + (mintCount === 1 ? ' mint send' : ' mint sends');
     } else {
       let matched = null;
       for (let i = CATEGORIES.length - 1; i >= 1; i--) {
@@ -442,22 +449,16 @@
         const topCount = colorCount(tier.top);
         if ((middleCount + topCount) >= TIER_MIDDLE_MIN && (topCount >= TIER_TOP_MIN || middleCount >= TIER_MIDDLE_HIGH)) {
           matched = tier;
-          detail = middleCount + ' ' + colorWord(tier.middle) + (topCount > 0 ? ', ' + topCount + ' ' + colorWord(tier.top) : '');
           break;
         }
       }
-      if (matched) {
-        category = matched.name;
-      } else {
-        const base = CATEGORIES[0];
-        category = base.name;
-        const middleCount = colorCount(base.middle);
-        const topCount = colorCount(base.top);
-        detail = (middleCount > 0 || topCount > 0)
-          ? middleCount + ' ' + colorWord(base.middle) + (topCount > 0 ? ', ' + topCount + ' ' + colorWord(base.top) : '')
-          : 'a great starting point — keep sending!';
-      }
+      category = matched ? matched.name : CATEGORIES[0].name;
     }
+
+    let detail = COLORS
+      .map((c, i) => counts[i] > 0 ? counts[i] + ' ' + c.label.toLowerCase() : null)
+      .filter(Boolean)
+      .join(', ');
 
     if (total !== 10) {
       detail += ' (based on ' + total + ' climbs entered)';
@@ -487,6 +488,7 @@
 
   buildRows();
   buildTicks();
+  updateTally();
 </script>
 </body>
 </html>
