@@ -459,19 +459,22 @@
 
       // Fallback: someone whose sends are spread thin across many colors
       // instead of concentrated in one tier's band won't match anything
-      // above. Check each tier's bottom-color-and-everything-harder as a
-      // cumulative total instead. Requires at least one send above the
-      // bottom color itself, so a pile of only the easiest connector color
-      // (e.g. purple alone) still doesn't count on its own.
+      // above. Check each tier's middle-color-and-everything-harder as a
+      // cumulative total instead (starting from MIDDLE, not bottom — the
+      // bottom color belongs to the tier below and shouldn't count as
+      // evidence for this one). Requires at least one send above the
+      // middle color itself, so a pile of only the tier's own middle color
+      // alone still doesn't sneak in here (that's what the primary check
+      // above already covers).
       if (!matched) {
         for (let i = CATEGORIES.length - 1; i >= 1; i--) {
-          const bottomIndex = COLORS.findIndex(c => c.key === CATEGORIES[i].bottom);
-          let cumulative = 0, aboveBottom = 0;
-          for (let j = bottomIndex; j < COLORS.length; j++) {
+          const middleIndex = COLORS.findIndex(c => c.key === CATEGORIES[i].middle);
+          let cumulative = 0, aboveMiddle = 0;
+          for (let j = middleIndex; j < COLORS.length; j++) {
             cumulative += counts[j];
-            if (j > bottomIndex) aboveBottom += counts[j];
+            if (j > middleIndex) aboveMiddle += counts[j];
           }
-          if (cumulative >= TIER_MIDDLE_MIN && aboveBottom >= 1) {
+          if (cumulative >= TIER_MIDDLE_MIN && aboveMiddle >= 1) {
             matched = CATEGORIES[i];
             break;
           }
