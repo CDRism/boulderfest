@@ -333,6 +333,15 @@
   // still apply as-is); entering more is blocked in the UI.
   const MAX_TOTAL_CLIMBS = 10;
 
+  // Floors: catch climbers whose total volume clearly belongs to a harder
+  // tier but doesn't cleanly fit either tier's own middle/top formula above
+  // (e.g. some black + a near-miss amount of blue, with zero pink). Real
+  // presence in a tier's own colors floors someone at that tier minimum,
+  // even when the exact formula above didn't match. This only ever raises
+  // a result — it can't downgrade an already-correct match.
+  const FLOOR_INTERMEDIATE_MIN = 3; // black + blue + pink + white, combined
+  const FLOOR_ADVANCED_MIN = 3;     // blue + pink + white, combined
+
   const TAG_COLORS = {
     Recreational: { bg: '#EDEAE3', fg: '#221E1B' },
     Intermediate: { bg: '#F0791E', fg: '#221E1B' },
@@ -453,6 +462,17 @@
         }
       }
       category = matched ? matched.name : CATEGORIES[0].name;
+    }
+
+    if (category !== 'Open') {
+      const blackPlus = colorCount('black') + colorCount('blue') + colorCount('pink') + colorCount('white');
+      const bluePlus = colorCount('blue') + colorCount('pink') + colorCount('white');
+      if (category === 'Recreational' && blackPlus >= FLOOR_INTERMEDIATE_MIN) {
+        category = 'Intermediate';
+      }
+      if ((category === 'Recreational' || category === 'Intermediate') && bluePlus >= FLOOR_ADVANCED_MIN) {
+        category = 'Advanced';
+      }
     }
 
     let detail = COLORS
