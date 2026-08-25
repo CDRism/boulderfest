@@ -318,8 +318,11 @@
   const TIER_MIDDLE_MIN = 6;
   // ...plus at least this many of its TOP color on their own...
   const TIER_TOP_MIN = 1;
-  // ...OR, with zero of the top color, at least this many of the middle
-  // color alone.
+  // ...OR, with none of the top color, at least this many combined between
+  // the BOTTOM and MIDDLE colors. (This is what lets a tier's connector
+  // color — e.g. black for Advanced, purple for Intermediate — count for
+  // something even though it's never anyone's "top." Bottom alone never
+  // carries this on its own; middle still needs real volume too.)
   const TIER_MIDDLE_HIGH = 8;
 
   // Absolute override: this many MINT sends (or more) is an automatic
@@ -332,15 +335,6 @@
   // more than that. Entering fewer than this is fine (thresholds above
   // still apply as-is); entering more is blocked in the UI.
   const MAX_TOTAL_CLIMBS = 10;
-
-  // Floors: catch climbers whose total volume clearly belongs to a harder
-  // tier but doesn't cleanly fit either tier's own middle/top formula above
-  // (e.g. some black + a near-miss amount of blue, with zero pink). Real
-  // presence in a tier's own colors floors someone at that tier minimum,
-  // even when the exact formula above didn't match. This only ever raises
-  // a result — it can't downgrade an already-correct match.
-  const FLOOR_INTERMEDIATE_MIN = 3; // black + blue + pink + white, combined
-  const FLOOR_ADVANCED_MIN = 3;     // blue + pink + white, combined
 
   const TAG_COLORS = {
     Recreational: { bg: '#EDEAE3', fg: '#221E1B' },
@@ -454,25 +448,37 @@
       let matched = null;
       for (let i = CATEGORIES.length - 1; i >= 1; i--) {
         const tier = CATEGORIES[i];
+        const bottomCount = colorCount(tier.bottom);
         const middleCount = colorCount(tier.middle);
         const topCount = colorCount(tier.top);
-        if ((middleCount + topCount) >= TIER_MIDDLE_MIN && (topCount >= TIER_TOP_MIN || middleCount >= TIER_MIDDLE_HIGH)) {
+        if ((middleCount + topCount) >= TIER_MIDDLE_MIN && (topCount >= TIER_TOP_MIN || (bottomCount + middleCount) >= TIER_MIDDLE_HIGH)) {
           matched = tier;
           break;
         }
       }
-      category = matched ? matched.name : CATEGORIES[0].name;
-    }
 
-    if (category !== 'Open') {
-      const blackPlus = colorCount('black') + colorCount('blue') + colorCount('pink') + colorCount('white');
-      const bluePlus = colorCount('blue') + colorCount('pink') + colorCount('white');
-      if (category === 'Recreational' && blackPlus >= FLOOR_INTERMEDIATE_MIN) {
-        category = 'Intermediate';
+      // Fallback: someone whose sends are spread thin across many colors
+      // instead of concentrated in one tier's band won't match anything
+      // above. Check each tier's bottom-color-and-everything-harder as a
+      // cumulative total instead. Requires at least one send above the
+      // bottom color itself, so a pile of only the easiest connector color
+      // (e.g. purple alone) still doesn't count on its own.
+      if (!matched) {
+        for (let i = CATEGORIES.length - 1; i >= 1; i--) {
+          const bottomIndex = COLORS.findIndex(c => c.key === CATEGORIES[i].bottom);
+          let cumulative = 0, aboveBottom = 0;
+          for (let j = bottomIndex; j < COLORS.length; j++) {
+            cumulative += counts[j];
+            if (j > bottomIndex) aboveBottom += counts[j];
+          }
+          if (cumulative >= TIER_MIDDLE_MIN && aboveBottom >= 1) {
+            matched = CATEGORIES[i];
+            break;
+          }
+        }
       }
-      if ((category === 'Recreational' || category === 'Intermediate') && bluePlus >= FLOOR_ADVANCED_MIN) {
-        category = 'Advanced';
-      }
+
+      category = matched ? matched.name : CATEGORIES[0].name;
     }
 
     let detail = COLORS
