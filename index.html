@@ -330,6 +330,11 @@
   // fit the bottom/middle/top pattern at all.
   const MINT_AUTO_OPEN = 1;
 
+  // Absolute floors: some colors are hard enough that sending even one
+  // rules out a category entirely, overriding everything else above.
+  const FLOOR_INTERMEDIATE_BLUE = 1; // any blue-or-harder send rules out Recreational
+  const FLOOR_ADVANCED_WHITE = 1;    // any white-or-harder send rules out Intermediate
+
   // The whole form is framed as "your top 10 hardest sends" — this caps
   // the total entries so someone can't inflate their counts by listing
   // more than that. Entering fewer than this is fine (thresholds above
@@ -483,6 +488,16 @@
 
       category = matched ? matched.name : CATEGORIES[0].name;
     }
+
+    if (category !== 'Open') {
+      const bluePlus = colorCount('blue') + colorCount('pink') + colorCount('white') + colorCount('mint');
+      const whitePlus = colorCount('white') + colorCount('mint');
+      if (category === 'Recreational' && bluePlus >= FLOOR_INTERMEDIATE_BLUE) {
+        category = 'Intermediate';
+      }
+      if ((category === 'Recreational' || category === 'Intermediate') && whitePlus >= FLOOR_ADVANCED_WHITE) {
+        category = 'Advanced';
+      }
 
     let detail = COLORS
       .map((c, i) => counts[i] > 0 ? counts[i] + ' ' + c.label.toLowerCase() : null)
