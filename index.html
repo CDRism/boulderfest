@@ -67,17 +67,6 @@
     gap: 0 20px;
   }
 
-  .col-label {
-    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--line);
-    margin: 0 0 12px;
-  }
-
   .color-row {
     display: flex;
     align-items: center;
@@ -251,7 +240,6 @@
 
   @media (max-width: 480px) {
     .grade-columns { grid-template-columns: 1fr; }
-    .col-label:nth-of-type(2) { margin-top: 4px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -263,18 +251,12 @@
 <div class="wrap">
   <p class="eyebrow">Boulderfest Sign-Up!</p>
   <h1>Find your category</h1>
-  <p class="subhead">Count up your top 10 hardest sends by color in the past two months. We'll tell you which division to enter!</p>
+  <p class="subhead">Count up your top 10 hardest sends by color in the past month. We'll tell you which division to enter!</p>
 
   <div class="card">
     <div class="grade-columns">
-      <div>
-        <p class="col-label">Easier</p>
-        <div id="col-easy"></div>
-      </div>
-      <div>
-        <p class="col-label">Harder</p>
-        <div id="col-hard"></div>
-      </div>
+      <div id="col-easy"></div>
+      <div id="col-hard"></div>
     </div>
 
     <div class="tally">
@@ -298,7 +280,7 @@
     </div>
   </div>
 
-  <footer>Categories: Beginner &middot; Intermediate &middot; Advanced &middot; Open</footer>
+  <footer>Categories: Recreational &middot; Intermediate &middot; Advanced &middot; Open</footer>
 </div>
 
 <script>
@@ -318,39 +300,33 @@
     { key: 'mint',   label: 'Mint',   hex: '#5FD9AE' },
   ];
 
-  // A climber qualifies for a category if AT LEAST HALF their climbs
-  // are at or above the listed colors for that tier.
-  const OPEN_AT_OR_ABOVE         = ['white', 'mint'];
-  const ADVANCED_AT_OR_ABOVE     = ['blue', 'pink', 'white', 'mint'];
-  const INTERMEDIATE_AT_OR_ABOVE = ['orange', 'black', 'blue', 'pink', 'white', 'mint'];
+  // Each category spans three colors: bottom, middle, and top.
+  // "bottom" is just for reference (which colors overlap with the tier
+  // below) — only middle and top are used in the qualification math below.
+  // Listed EASIEST first; Open is the hardest.
+  const CATEGORIES = [
+    { name: 'Recreational', bottom: 'yellow', middle: 'red',    top: 'green' },
+    { name: 'Intermediate', bottom: 'purple', middle: 'orange', top: 'black' },
+    { name: 'Advanced',     bottom: 'black',  middle: 'blue',   top: 'pink'  },
+    { name: 'Open',         bottom: 'blue',   middle: 'pink',   top: 'white' },
+  ];
 
-  // Anti-sandbagging rule: to stay in Intermediate, no more than this many
-  // climbs can be Advanced-tier (blue or above). Climbers who clear the
-  // Intermediate bar but exceed this cap get bumped up to Advanced instead
-  // of falling through to Beginner.
-  const INTERMEDIATE_BLUE_CAP = 2;
+  // To qualify for a category: the MIDDLE and TOP colors, combined, add up
+  // to at least this many sends...
+  const TIER_MIDDLE_MIN = 6;
+  // ...plus at least this many of its TOP color on their own...
+  const TIER_TOP_MIN = 1;
+  // ...OR, with zero of the top color, at least this many of the middle
+  // color alone.
+  const TIER_MIDDLE_HIGH = 8;
 
-  // Same idea one tier up: to stay in Advanced, no more than this many
-  // climbs can be Open-tier (white or mint).
-  const ADVANCED_WHITE_CAP = 2;
-
-  // Even below the volume bar for a tier, more than this many climbs at
-  // the next tier's color still bumps someone up. Beginner -> Intermediate.
-  const BEGINNER_ORANGE_CAP = 2;
-
-  // Absolute override: more than this many MINT climbs (the single hardest
-  // color) puts someone in Open regardless of everything else. 0 means
-  // "any mint send at all" qualifies — mint is treated as strictly harder
-  // than every other tier's threshold, so it overrides volume math entirely.
-  const ADVANCED_MINT_CAP = 0;
-
-  // Floors: some colors are hard enough that sending even one rules out
-  // the lower categories entirely, no matter what the volume math says.
-  const BEGINNER_BLUE_FLOOR = 0;      // more than this many blue-or-harder climbs -> can't stay in Beginner
-  const INTERMEDIATE_WHITE_FLOOR = 0; // more than this many white-or-harder climbs -> can't stay in Intermediate (or Beginner)
+  // Absolute override: this many MINT sends (or more) is an automatic
+  // Open, independent of every other rule above — mint doesn't need to
+  // fit the bottom/middle/top pattern at all.
+  const MINT_AUTO_OPEN = 1;
 
   const TAG_COLORS = {
-    Beginner:     { bg: '#EDEAE3', fg: '#221E1B' },
+    Recreational: { bg: '#EDEAE3', fg: '#221E1B' },
     Intermediate: { bg: '#F0791E', fg: '#221E1B' },
     Advanced:     { bg: '#2461A6', fg: '#FFFFFF' },
     Open:         { bg: '#5FD9AE', fg: '#16332A' },
@@ -430,10 +406,14 @@
     document.getElementById('empty-note').classList.remove('visible');
   }
 
-  function countAtOrAbove(keys) {
-    let sum = 0;
-    COLORS.forEach((c, i) => { if (keys.includes(c.key)) sum += counts[i]; });
-    return sum;
+  function colorCount(key) {
+    const i = COLORS.findIndex(c => c.key === key);
+    return i === -1 ? 0 : counts[i];
+  }
+
+  function colorWord(key) {
+    const c = COLORS.find(c => c.key === key);
+    return c ? c.label.toLowerCase() : key;
   }
 
   function calculate() {
@@ -448,44 +428,35 @@
     }
     noteEl.classList.remove('visible');
 
-    const half = Math.ceil(total / 2);
-    const openCount = countAtOrAbove(OPEN_AT_OR_ABOVE);
-    const advCount = countAtOrAbove(ADVANCED_AT_OR_ABOVE);
-    const intCount = countAtOrAbove(INTERMEDIATE_AT_OR_ABOVE);
-    const mintCount = countAtOrAbove(['mint']);
-
+    const mintCount = colorCount('mint');
     let category, detail;
-    if (mintCount > ADVANCED_MINT_CAP) {
-      category = 'Open';
-      detail = mintCount + ' of ' + total + ' were mint';
-    } else if (openCount >= half) {
-      category = 'Open';
-      detail = openCount + ' of ' + total + ' were white or mint';
-    } else if (advCount >= half && openCount > ADVANCED_WHITE_CAP) {
-      category = 'Open';
-      detail = advCount + ' of ' + total + ' were blue or harder, including ' + openCount + ' at white or harder';
-    } else if (advCount >= half) {
-      category = 'Advanced';
-      detail = advCount + ' of ' + total + ' were blue or harder';
-    } else if (intCount >= half && advCount > INTERMEDIATE_BLUE_CAP) {
-      category = 'Advanced';
-      detail = intCount + ' of ' + total + ' were orange or harder, including ' + advCount + ' at blue or harder';
-    } else if (intCount >= half || intCount > BEGINNER_ORANGE_CAP) {
-      category = 'Intermediate';
-      detail = intCount + ' of ' + total + ' were orange or harder';
-    } else {
-      category = 'Beginner';
-      detail = intCount + ' of ' + total + ' were orange or harder';
-    }
 
-    // Floors: a single blue+ or white+ send overrides the volume math above.
-    if (category === 'Beginner' && advCount > BEGINNER_BLUE_FLOOR) {
-      category = 'Intermediate';
-      detail = advCount + ' of ' + total + ' were blue or harder — that rules out Beginner';
-    }
-    if ((category === 'Beginner' || category === 'Intermediate') && openCount > INTERMEDIATE_WHITE_FLOOR) {
-      category = 'Advanced';
-      detail = openCount + ' of ' + total + ' were white or harder — that rules out Intermediate';
+    if (mintCount >= MINT_AUTO_OPEN) {
+      category = 'Open';
+      detail = mintCount + (mintCount === 1 ? ' mint send' : ' mint sends');
+    } else {
+      let matched = null;
+      for (let i = CATEGORIES.length - 1; i >= 1; i--) {
+        const tier = CATEGORIES[i];
+        const middleCount = colorCount(tier.middle);
+        const topCount = colorCount(tier.top);
+        if ((middleCount + topCount) >= TIER_MIDDLE_MIN && (topCount >= TIER_TOP_MIN || middleCount >= TIER_MIDDLE_HIGH)) {
+          matched = tier;
+          detail = middleCount + ' ' + colorWord(tier.middle) + (topCount > 0 ? ', ' + topCount + ' ' + colorWord(tier.top) : '');
+          break;
+        }
+      }
+      if (matched) {
+        category = matched.name;
+      } else {
+        const base = CATEGORIES[0];
+        category = base.name;
+        const middleCount = colorCount(base.middle);
+        const topCount = colorCount(base.top);
+        detail = (middleCount > 0 || topCount > 0)
+          ? middleCount + ' ' + colorWord(base.middle) + (topCount > 0 ? ', ' + topCount + ' ' + colorWord(base.top) : '')
+          : 'a great starting point — keep sending!';
+      }
     }
 
     if (total !== 10) {
