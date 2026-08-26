@@ -310,7 +310,13 @@
     { name: 'Recreational', bottom: 'yellow', middle: 'red',    top: 'green' },
     { name: 'Intermediate', bottom: 'purple', middle: 'orange', top: 'black' },
     { name: 'Advanced',     bottom: 'black',  middle: 'blue',   top: 'pink'  },
-    { name: 'Open',         bottom: 'blue',   middle: 'pink',   top: 'white' },
+    // Open is a special case: pink (v6-v8) and white (v8-10) only overlap
+    // by one grade, not the usual two, so a pile of pink alone isn't real
+    // evidence of Open-level climbing the way it is at every other tier
+    // boundary. middleMin raises the combined threshold to 8 (instead of
+    // the default 6), and requireTop makes white mandatory — no escape
+    // valve substitute the way other tiers have one.
+    { name: 'Open',         bottom: 'blue',   middle: 'pink',   top: 'white', middleMin: 8, requireTop: true },
   ];
 
   // To qualify for a category: the MIDDLE and TOP colors, combined, add up
@@ -456,7 +462,11 @@
         const bottomCount = colorCount(tier.bottom);
         const middleCount = colorCount(tier.middle);
         const topCount = colorCount(tier.top);
-        if ((middleCount + topCount) >= TIER_MIDDLE_MIN && (topCount >= TIER_TOP_MIN || (bottomCount + middleCount) >= TIER_MIDDLE_HIGH)) {
+        const middleMin = tier.middleMin || TIER_MIDDLE_MIN;
+        const qualifies = tier.requireTop
+          ? (middleCount + topCount) >= middleMin && topCount >= TIER_TOP_MIN
+          : (middleCount + topCount) >= middleMin && (topCount >= TIER_TOP_MIN || (bottomCount + middleCount) >= TIER_MIDDLE_HIGH);
+        if (qualifies) {
           matched = tier;
           break;
         }
@@ -473,14 +483,16 @@
       // above already covers).
       if (!matched) {
         for (let i = CATEGORIES.length - 1; i >= 1; i--) {
-          const middleIndex = COLORS.findIndex(c => c.key === CATEGORIES[i].middle);
+          const tier = CATEGORIES[i];
+          const middleMin = tier.middleMin || TIER_MIDDLE_MIN;
+          const middleIndex = COLORS.findIndex(c => c.key === tier.middle);
           let cumulative = 0, aboveMiddle = 0;
           for (let j = middleIndex; j < COLORS.length; j++) {
             cumulative += counts[j];
             if (j > middleIndex) aboveMiddle += counts[j];
           }
-          if (cumulative >= TIER_MIDDLE_MIN && aboveMiddle >= 1) {
-            matched = CATEGORIES[i];
+          if (cumulative >= middleMin && aboveMiddle >= 1) {
+            matched = tier;
             break;
           }
         }
